@@ -1,0 +1,122 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+function usage(): void {
+    fwrite(STDERR,
+        "Usage:\n" .
+        "  php bin/radar <client_domain> [--mode=sales|onboarding] [--lang=en|ru] [--market=Global] [--competitor=domain] [--slides=10]\n" .
+        "Examples:\n" .
+        "  php bin/radar weimpa.com\n" .
+        "  php bin/radar weimpa.com --competitor=brightcall.ai --mode=sales --lang=en\n" .
+        "  php bin/radar example.com --mode=onboarding --lang=en --slides=12\n"
+    );
+}
+
+function parseOpts(array $argv): array {
+    $args = $argv;
+    array_shift($args);
+
+    if (count($args) === 0) {
+        usage();
+        exit(2);
+    }
+
+    $client = array_shift($args);
+    $opts = [
+        'mode' => 'sales',
+        'lang' => 'en',
+        'market' => 'Global',
+        'competitor' => '',
+        'slides' => null, // null => не просили
+    ];
+
+    foreach ($args as $a) {
+        if (str_starts_with($a, '--mode=')) {
+            $opts['mode'] = strtolower(substr($a, 7));
+        } elseif (str_starts_with($a, '--lang=')) {
+            $opts['lang'] = strtolower(substr($a, 7));
+        } elseif (str_starts_with($a, '--market=')) {
+            $opts['market'] = substr($a, 9);
+        } elseif (str_starts_with($a, '--competitor=')) {
+            $opts['competitor'] = trim(substr($a, 13));
+        } elseif (str_starts_with($a, '--slides=')) {
+            $v = (int)substr($a, 9);
+            if ($v < 0) $v = 0;
+            if ($v > 20) $v = 20;
+            $opts['slides'] = $v; // теперь это явный запрос
+        }
+    }
+
+    if (!in_array($opts['mode'], ['sales', 'onboarding'], true)) {
+        fwrite(STDERR, "Invalid --mode. Use sales|onboarding\n");
+        exit(2);
+    }
+
+    return [$client, $opts];
+}
+
+function sanitizeDomainForId(string $s): string {
+    $s = strtolower(trim($s));
+    $s = preg_replace('#^https?://#', '', $s);
+    $s = preg_replace('#/.*$#', '', $s);
+    $s = preg_replace('#[^a-z0-9\.\-]+#', '_', $s);
+    return $s ?: 'domain';
+}
+
+[$clientDomain, $opts] = parseOpts($argv);
+
+$root = dirname(__DIR__);
+
+// Windows venv python path (как у тебя сейчас)
+$python = $root . DIRECTORY_SEPARATOR . '.venv' . DIRECTORY_SEPARATOR . 'Scripts' . DIRECTORY_SEPARATOR . 'python.exe';
+$script = $root . DIRECTORY_SEPARATOR . 'py' . DIRECTORY_SEPARATOR . 'cli.py';
+
+// run_id должен совпадать с Python run_id схемой
+$domainId = sanitizeDomainForId($clientDomain);
+$runId = date('Y-m-d') . '__' . $domainId . '__' . $opts['mode'] . '__' . $opts['lang'];
+
+// cmd=run создаёт папки сам
+$payload = [
+    "cmd" => "run",
+    "run_id" => $runId,
+    "client_domain" => $clientDomain,
+    "market" => $opts['market'],
+    "language" => $opts['lang'],
+    "mode" => $opts['mode'],
+    "competitors" => $opts['competitor'] !== '' ? [$opts['competitor']] : [],
+];
+
+// Слайды — только по явному запросу
+if ($opts['slides'] !== null) {
+    $payload["slide_limit"] = $opts['slides'];
+}
+
+$spec = [
+    0 => ["pipe", "r"],
+    1 => ["pipe", "w"],
+    2 => ["pipe", "w"],
+];
+
+$cmd = '"' . $python . '" "' . $script . '"';
+$proc = proc_open($cmd, $spec, $pipes, $root);
+
+if (!is_resource($proc)) {
+    fwrite(STDERR, "proc_open failed\n");
+    exit(1);
+}
+
+fwrite($pipes[0], json_encode($payload, JSON_UNESCAPED_SLASHES));
+fclose($pipes[0]);
+
+$out = stream_get_contents($pipes[1]); fclose($pipes[1]);
+$err = stream_get_contents($pipes[2]); fclose($pipes[2]);
+
+$code = proc_close($proc);
+
+if ($code !== 0) {
+    fwrite(STDERR, $err . "\n");
+    exit($code);
+}
+
+echo $out . PHP_EOL;

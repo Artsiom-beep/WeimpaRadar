@@ -1,0 +1,2 @@
+version,run_id,created_at,client_domain,market,language,mode,competitors,slider_detected,slider_method,slides_attempted,screenshots_count,slides_count,site_screens_ms
+0.1,2025-12-17__yasmina.yango.com__sales__en,2025-12-17T17:48:19.799220+00:00,yasmina.yango.com,Global,en,sales,,False,,False,1,0,3515

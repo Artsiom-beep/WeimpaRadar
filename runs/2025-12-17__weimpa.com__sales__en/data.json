@@ -1,0 +1,38 @@
+{
+  "version": "0.1",
+  "run_id": "2025-12-17__weimpa.com__sales__en",
+  "created_at": "2025-12-17T17:39:15.125967+00:00",
+  "input": {
+    "client_domain": "weimpa.com",
+    "market": "Global",
+    "language": "en",
+    "mode": "sales",
+    "competitors": []
+  },
+  "sources": {
+    "semrush_overview_screenshot": "runs/2025-12-17__weimpa.com__sales__en/uploads/semrush_overview.png",
+    "blocked_screen": null
+  },
+  "metrics": {
+    "timings_ms": {
+      "site_screens": 15271
+    },
+    "site": {
+      "slider_detected": false,
+      "slider_method": null,
+      "slides_attempted": false
+    }
+  },
+  "outputs": {
+    "screenshots": [
+      "runs/2025-12-17__weimpa.com__sales__en/screenshots/full_page.png"
+    ],
+    "sales_note_txt": null,
+    "report_md": null,
+    "data_json": "runs/2025-12-17__weimpa.com__sales__en/data.json",
+    "data_csv": "runs/2025-12-17__weimpa.com__sales__en/data.csv"
+  },
+  "notes": {
+    "competitors": {}
+  }
+}
