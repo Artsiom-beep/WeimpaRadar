@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 def iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _metric_null(reason: str = "нет данных на предоставленном скрине") -> Dict[str, Any]:
+    return {"value": None, "reason": reason}
 
 
 def new_data_v0_1(
@@ -29,14 +32,29 @@ def new_data_v0_1(
             "competitors": competitors,
         },
         "sources": {
-            "semrush_overview_screenshot": None,
-            "blocked_screen": None,
+            "site_screenshots": [],
+            "semrush_source": "manual",
+            "semrush_screenshot_file": None,          # backward compat (1 файл)
+            "semrush_overview_screenshot": None,      # backward compat
+            "semrush_files": [],                      # новый список файлов (uploads paths)
+            "semrush_pdf_file": None,                 # uploads/semrush.pdf
+            "blocked_screen_file": None,
+            "blocked_screen": None,                   # backward compat
         },
         "metrics": {
             "timings_ms": {},
             "site": {
                 "slider_detected": None,
                 "slider_method": None,
+                "slides_attempted": None,
+                "blocked": None,
+            },
+            "semrush": {
+                "authority_score": _metric_null(),
+                "organic_traffic": _metric_null(),
+                "organic_keywords": _metric_null(),
+                "paid_traffic": _metric_null(),
+                "backlinks": _metric_null(),
             },
         },
         "outputs": {
@@ -47,6 +65,8 @@ def new_data_v0_1(
             "data_csv": None,
         },
         "notes": {
+            "client_site_meta": None,
+            "semrush_competitors": {"domains": [], "reason": "нет данных на предоставленном скрине"},
             "competitors": {},
         },
     }

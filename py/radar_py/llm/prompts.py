@@ -3,43 +3,59 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
+def _reason(v: Dict[str, Any]) -> str:
+    r = (v or {}).get("reason")
+    return r or "нет данных на предоставленном скрине"
+
+
 def sales_note_prompt(data: Dict[str, Any]) -> str:
     inp = data.get("input", {}) or {}
     sources = data.get("sources", {}) or {}
     site = (data.get("metrics", {}) or {}).get("site", {}) or {}
+    semrush = (data.get("metrics", {}) or {}).get("semrush", {}) or {}
+    notes = data.get("notes", {}) or {}
+    semrush_comp = notes.get("semrush_competitors", {}) or {}
+    comp_notes = notes.get("competitors", {}) or {}
 
     return f"""
-    You are generating a sales note.
+You are generating a sales note.
 
-    STRICT RULES (NO EXCEPTIONS):
-    - Do NOT invent facts.
-    - Do NOT suggest marketing, SEO, growth or product improvements unless explicitly supported by provided data.
-    - If data is missing, you MUST state that no conclusions can be drawn.
-    - In case of missing data, Quick wins can ONLY be about providing access or data.
+STRICT:
+- Plain text only.
+- Exactly 10 lines.
+- No "..." anywhere.
+- Never invent facts.
+- Only use statements supported by EVIDENCE below.
+- If something is missing, say it is unavailable and include the reason.
 
-    Input:
-    - domain: {inp.get("client_domain")}
-    - market: {inp.get("market")}
-    - language: {inp.get("language")}
-    - mode: {inp.get("mode")}
-    - competitors: {inp.get("competitors")}
+EVIDENCE:
+- domain: {inp.get("client_domain")}
+- market: {inp.get("market")}
+- language: {inp.get("language")}
+- mode: {inp.get("mode")}
+- competitors list: {inp.get("competitors")}
+- blocked: {bool(site.get("blocked"))}
+- semrush_files_count: {len((sources.get("semrush_files") or []))}
+- semrush_pdf_file: {"provided" if sources.get("semrush_pdf_file") else "not provided"}
 
-    Sources:
-    - semrush_overview_screenshot: {"provided" if sources.get("semrush_overview_screenshot") else "not provided"}
-    - blocked: {bool(site.get("blocked"))}
+Semrush metrics object:
+{semrush}
 
-    Write EXACTLY 10–15 lines in this structure:
+Semrush competitor extraction:
+{semrush_comp}
 
-    Facts (3 lines)  
-    Insights (3 lines)  
-    Quick wins (3 lines)  
-    CTA (1 line)
+Competitor notes:
+{comp_notes}
 
-    If semrush_overview_screenshot is NOT provided:
-    - Facts must state that performance data is unavailable.
-    - Insights must describe implications of missing data, NOT opportunities.
-    - Quick wins must ONLY describe steps to obtain data.
-    """.strip()
+Structure (EXACTLY 10 lines):
+Facts (3 lines)
+Insights (3 lines)
+Quick wins (3 lines)
+CTA (1 line)
+
+Rule:
+- If a semrush metric value is null, you MUST state it is unavailable and include its reason.
+""".strip()
 
 
 def report_md_prompt(data: Dict[str, Any]) -> str:
@@ -47,37 +63,63 @@ def report_md_prompt(data: Dict[str, Any]) -> str:
     sources = data.get("sources", {}) or {}
     site = (data.get("metrics", {}) or {}).get("site", {}) or {}
     outputs = data.get("outputs", {}) or {}
+    semrush = (data.get("metrics", {}) or {}).get("semrush", {}) or {}
+    notes = data.get("notes", {}) or {}
+    semrush_comp = notes.get("semrush_competitors", {}) or {}
+    comp_notes = notes.get("competitors", {}) or {}
+
+    def m(k: str) -> str:
+        v = (semrush or {}).get(k) or {}
+        if (v or {}).get("value") is None:
+            return f"{k}: unavailable ({_reason(v)})"
+        return f"{k}: {(v or {}).get('value')}"
+
+    semrush_lines = "\n".join([
+        m("authority_score"),
+        m("organic_traffic"),
+        m("organic_keywords"),
+        m("paid_traffic"),
+        m("backlinks"),
+    ])
 
     return f"""
-    Write a one-page markdown report.
+Write a one-page markdown report.
 
-    STRICT RULES:
-    - Do NOT invent facts.
-    - Do NOT describe opportunities, improvements or strategies without concrete data.
-    - If data is missing, clearly state that analysis is limited.
+STRICT:
+- No "..." anywhere.
+- Never invent facts.
+- Only use statements supported by EVIDENCE below.
+- If you cannot support a statement, write: "No data: <reason>".
 
-    Use this structure:
+Use this structure:
 
-    # Summary
-    # What we observed
-    # Risks / blockers
-    # Opportunities
-    # Next steps
+# Summary
+# What we observed
+# Risks / blockers
+# Opportunities
+# Next steps
 
-    Context:
-    - domain: {inp.get("client_domain")}
-    - market: {inp.get("market")}
-    - language: {inp.get("language")}
-    - mode: {inp.get("mode")}
-    - competitors: {inp.get("competitors")}
+EVIDENCE:
+- domain: {inp.get("client_domain")}
+- market: {inp.get("market")}
+- language: {inp.get("language")}
+- mode: {inp.get("mode")}
+- competitors list: {inp.get("competitors")}
+- blocked: {bool(site.get("blocked"))}
+- screenshots count: {len(outputs.get("screenshots") or [])}
+- semrush_files_count: {len((sources.get("semrush_files") or []))}
+- semrush_pdf_file: {"provided" if sources.get("semrush_pdf_file") else "not provided"}
 
-    Evidence:
-    - screenshots count: {len(outputs.get("screenshots") or [])}
-    - semrush_overview_screenshot: {"provided" if sources.get("semrush_overview_screenshot") else "not provided"}
-    - blocked: {bool(site.get("blocked"))}
+Semrush metrics:
+{semrush_lines}
 
-    Rules:
-    - If semrush data is not provided, the Opportunities section MUST focus only on enabling analysis, not business growth.
-    - If blocked is true, the report MUST focus on access restriction as the primary blocker.
-    """.strip()
+Semrush competitor extraction:
+{semrush_comp}
 
+Competitor notes:
+{comp_notes}
+
+Rules:
+- If competitor notes exist: you may compare using only those notes.
+- If competitors list is not empty but competitor notes missing: write "No data: competitor screenshots/notes not captured".
+""".strip()

@@ -1,0 +1,84 @@
+{
+  "version": "0.1",
+  "run_id": "2026-01-08__weimpa.com__sales__en",
+  "created_at": "2026-01-08T12:39:52.590029+00:00",
+  "input": {
+    "client_domain": "weimpa.com",
+    "market": "Global",
+    "language": "en",
+    "mode": "sales",
+    "competitors": []
+  },
+  "sources": {
+    "site_screenshots": [
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/full_page.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_01.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_02.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_03.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_04.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_05.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_06.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_07.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_08.png"
+    ],
+    "semrush_source": "manual",
+    "semrush_screenshot_file": "runs/2026-01-08__weimpa.com__sales__en/uploads/semrush_overview.png",
+    "semrush_overview_screenshot": "runs/2026-01-08__weimpa.com__sales__en/uploads/semrush_overview.png",
+    "blocked_screen_file": null,
+    "blocked_screen": null
+  },
+  "metrics": {
+    "timings_ms": {
+      "site_screens": 23252
+    },
+    "site": {
+      "slider_detected": true,
+      "slider_method": "ArrowRight",
+      "slides_attempted": true,
+      "blocked": false
+    },
+    "semrush": {
+      "authority_score": {
+        "value": 2,
+        "reason": null
+      },
+      "organic_traffic": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "organic_keywords": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "paid_traffic": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "backlinks": {
+        "value": 93,
+        "reason": null
+      }
+    }
+  },
+  "outputs": {
+    "screenshots": [
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/full_page.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_01.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_02.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_03.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_04.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_05.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_06.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_07.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/slide_08.png",
+      "runs/2026-01-08__weimpa.com__sales__en/screenshots/semrush_domain_overview.png"
+    ],
+    "sales_note_txt": "runs/2026-01-08__weimpa.com__sales__en/sales_note.txt",
+    "report_md": "runs/2026-01-08__weimpa.com__sales__en/report.md",
+    "data_json": "runs/2026-01-08__weimpa.com__sales__en/data.json",
+    "data_csv": "runs/2026-01-08__weimpa.com__sales__en/data.csv"
+  },
+  "notes": {
+    "competitors": {}
+  }
+}

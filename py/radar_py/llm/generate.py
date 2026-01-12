@@ -18,7 +18,7 @@ def generate_sales_and_report(
             {"role": "system", "content": "You are a precise B2B analyst. Never invent facts."},
             {"role": "user", "content": sales_note_prompt(data)},
         ],
-        temperature=0.2,
+        temperature=0.0,
     )
 
     report_text = chat_text(
@@ -26,7 +26,7 @@ def generate_sales_and_report(
             {"role": "system", "content": "You write concise markdown reports. Never invent facts."},
             {"role": "user", "content": report_md_prompt(data)},
         ],
-        temperature=0.2,
+        temperature=0.0,
     )
 
     sales_path = run_dir / "sales_note.txt"

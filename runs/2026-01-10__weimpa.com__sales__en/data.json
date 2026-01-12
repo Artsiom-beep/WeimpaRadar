@@ -1,0 +1,95 @@
+{
+  "version": "0.1",
+  "run_id": "2026-01-10__weimpa.com__sales__en",
+  "created_at": "2026-01-10T14:05:46.962678+00:00",
+  "input": {
+    "client_domain": "weimpa.com",
+    "market": "Global",
+    "language": "en",
+    "mode": "sales",
+    "competitors": []
+  },
+  "sources": {
+    "site_screenshots": [
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/full_page.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_01.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_02.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_03.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_04.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_05.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/semrush_00__weimpa.com__login_needed.png"
+    ],
+    "semrush_source": "manual",
+    "semrush_screenshot_file": "runs/2026-01-10__weimpa.com__sales__en/uploads/semrush_00__weimpa.com__login_needed.png",
+    "semrush_overview_screenshot": "runs/2026-01-10__weimpa.com__sales__en/uploads/semrush_00__weimpa.com__login_needed.png",
+    "semrush_files": [
+      "runs/2026-01-10__weimpa.com__sales__en/uploads/semrush_00__weimpa.com__login_needed.png"
+    ],
+    "semrush_pdf_file": null,
+    "blocked_screen_file": null,
+    "blocked_screen": null
+  },
+  "metrics": {
+    "timings_ms": {
+      "site_screens": 16889
+    },
+    "site": {
+      "slider_detected": true,
+      "slider_method": "ArrowRight",
+      "slides_attempted": true,
+      "blocked": false
+    },
+    "semrush": {
+      "authority_score": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "organic_traffic": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "organic_keywords": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "paid_traffic": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      },
+      "backlinks": {
+        "value": null,
+        "reason": "нет данных на предоставленном скрине"
+      }
+    }
+  },
+  "outputs": {
+    "screenshots": [
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/full_page.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_01.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_02.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_03.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_04.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/slide_05.png",
+      "runs/2026-01-10__weimpa.com__sales__en/screenshots/semrush_00__weimpa.com__login_needed.png"
+    ],
+    "sales_note_txt": "runs/2026-01-10__weimpa.com__sales__en/sales_note.txt",
+    "report_md": "runs/2026-01-10__weimpa.com__sales__en/report.md",
+    "data_json": "runs/2026-01-10__weimpa.com__sales__en/data.json",
+    "data_csv": "runs/2026-01-10__weimpa.com__sales__en/data.csv"
+  },
+  "notes": {
+    "client_site_meta": {
+      "blocked": false,
+      "slider_detected": true,
+      "method": "ArrowRight",
+      "slides_attempted": true,
+      "title": "WeSafeLocal — Messenger-native marketplaces",
+      "body_excerpt": "WeSafeLocal We solve chaos in local buy-&-sell by bringing marketplaces into messengers. Messenger-native 1-click listing 1-second AI discovery Community trust. We’re hiring: Community Managers & Growth. Products: City marketplaces Communities Franchise growth AI-SEO 1001 pages Traffic factory from Google & GPT Locations: NYC Dubai Online AMAs. Contact: sz@weimpa.me TG @wesafelocal Upperworld: Champagne Skyline Networking. Tavern: Drinks Nightlife People. Enter (<21) Enter (21+) mission about-us career products ai-seo communities contact tavern MISSION ABOUT US CAREER PRODUCTS AI-SEO 1001 COMMUNITIES CONTACT 21+"
+    },
+    "semrush_competitors": {
+      "domains": [],
+      "reason": "нет данных на предоставленном скрине"
+    },
+    "competitors": {}
+  }
+}
