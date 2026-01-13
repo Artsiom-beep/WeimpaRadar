@@ -41,6 +41,34 @@ function save_uploads_array($fileKey, $dstDir, $prefix) {
   }
 }
 
+function list_images_recursive_1_level($dirAbs, $dirRel) {
+  if (!is_dir($dirAbs)) return [];
+
+  $out = [];
+  $items = scandir($dirAbs);
+  foreach ($items as $it) {
+    if ($it === '.' || $it === '..') continue;
+
+    $abs = $dirAbs . DIRECTORY_SEPARATOR . $it;
+    $rel = $dirRel . '/' . $it;
+
+    if (is_dir($abs)) {
+      $sub = scandir($abs);
+      foreach ($sub as $f) {
+        if ($f === '.' || $f === '..') continue;
+        if (!preg_match('/\.(png|jpg|jpeg|webp)$/i', $f)) continue;
+        $out[] = [$rel . '/' . $f, $it . '/' . $f];
+      }
+      continue;
+    }
+
+    if (!preg_match('/\.(png|jpg|jpeg|webp)$/i', $it)) continue;
+    $out[] = [$rel, $it];
+  }
+
+  return $out;
+}
+
 $client_domain = trim($_POST['client_domain'] ?? '');
 $market = trim($_POST['market'] ?? 'Global');
 $language = trim($_POST['language'] ?? 'en');
@@ -77,6 +105,11 @@ save_upload('blocked_screen', $uploads_dir . DIRECTORY_SEPARATOR . 'blocked_scre
 
 $competitors = [];
 if ($competitor_1 !== '') $competitors[] = $competitor_1;
+
+// manual competitor screenshots (optional)
+if ($competitor_1 !== '') {
+  save_uploads_array('competitor_files', $uploads_dir, 'competitor__' . slug($competitor_1));
+}
 
 $payload = [
   'cmd' => 'run',
@@ -155,17 +188,15 @@ $res = json_decode($out, true);
     <?php
       $ssDirRel = $runDirRel . '/screenshots';
       $ssDirAbs = __DIR__ . DIRECTORY_SEPARATOR . $ssDirRel;
-      if (is_dir($ssDirAbs)) {
-        $files = scandir($ssDirAbs);
-        foreach ($files as $f) {
-          if ($f === '.' || $f === '..') continue;
-          if (!preg_match('/\.(png|jpg|jpeg|webp)$/i', $f)) continue;
-          $src = $ssDirRel . '/' . $f;
-          echo '<div style="margin:10px 0;">';
-          echo '<div>' . htmlspecialchars($f) . '</div>';
-          echo '<img src="' . htmlspecialchars($src) . '" />';
-          echo '</div>';
-        }
+
+      $imgs = list_images_recursive_1_level($ssDirAbs, $ssDirRel);
+      foreach ($imgs as $pair) {
+        $src = $pair[0];
+        $label = $pair[1];
+        echo '<div style="margin:10px 0;">';
+        echo '<div>' . htmlspecialchars($label) . '</div>';
+        echo '<img src="' . htmlspecialchars($src) . '" />';
+        echo '</div>';
       }
     ?>
   <?php endif; ?>
