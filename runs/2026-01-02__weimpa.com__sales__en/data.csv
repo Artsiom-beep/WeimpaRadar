@@ -1,2 +1,0 @@
-version,run_id,created_at,client_domain,market,language,mode,competitors,slider_detected,slider_method,slides_attempted,screenshots_count,slides_count,site_screens_ms
-0.1,2026-01-02__weimpa.com__sales__en,2026-01-02T15:50:48.306185+00:00,weimpa.com,Global,en,sales,,True,ArrowRight,True,9,8,20536

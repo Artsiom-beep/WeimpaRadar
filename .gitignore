@@ -1,0 +1,6 @@
+﻿.env
+.venv/
+.playwright-browsers/
+runs/
+__pycache__/
+*.pyc
