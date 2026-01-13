@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from radar_py.commands.site_screens import cmd_site_screens
 from radar_py.commands.semrush_screens import cmd_semrush_screens
 from radar_py.export.csv_v0_1 import write_data_csv_v0_1
 from radar_py.llm.generate import generate_sales_and_report
-from radar_py.llm.openai_client import chat_text
+from radar_py.llm.openai_client import chat_text, vision_json
 from radar_py.llm.vision_semrush import extract_semrush_metrics, extract_semrush_competitors
 from radar_py.schema.v0_1 import new_data_v0_1
 from radar_py.semrush.pdf_to_images import render_pdf_to_pngs
@@ -36,6 +36,18 @@ def _collect_semrush_upload_images(uploads_dir: Path) -> List[Path]:
             seen.add(rp)
             uniq.append(p)
     return uniq
+
+
+def _collect_competitor_upload_images(uploads_dir: Path, domain: str) -> List[Path]:
+    d = _slug_domain(domain)
+    out: List[Path] = []
+    for pat in (
+        f"competitor__{d}_*.png",
+        f"competitor__{d}_*.jpg",
+        f"competitor__{d}_*.jpeg",
+    ):
+        out.extend(sorted(uploads_dir.glob(pat)))
+    return out
 
 
 def _copy_into_screenshots(files: List[Path], screenshots_dir: Path) -> List[Path]:
@@ -95,6 +107,71 @@ blocked: {blocked}
 title: {title}
 body_excerpt: {body_excerpt}
 """.strip()
+
+
+def _extract_competitor_note_from_screenshot(image_path: Path, *, language: str, domain: str) -> Dict[str, Any]:
+    lang = (language or "en").lower()
+    default_reason = "нет данных на предоставленном скрине" if lang == "ru" else "not visible in the provided screenshot"
+
+    if not image_path.exists():
+        return {"note": None, "reason": default_reason}
+
+    if lang == "ru":
+        prompt = f"""
+Ты извлекаешь короткую заметку о сайте конкурента со СКРИНШОТА.
+
+Верни СТРОГО JSON с ровно 2 ключами:
+- note: string или null
+- reason: string или null
+
+Правила:
+- note = 3–5 строк plain text.
+- Используй ТОЛЬКО то, что видно на скрине (текст, заголовки, оффер).
+- Никаких догадок, никаких "..." .
+- Если данных мало/ничего не видно:
+  note = null
+  reason = "{default_reason}"
+- Если note заполнен:
+  reason = null
+
+domain: {domain}
+""".strip()
+    else:
+        prompt = f"""
+You extract a short competitor website note from a SCREENSHOT.
+
+Return STRICTLY JSON with EXACTLY 2 keys:
+- note: string or null
+- reason: string or null
+
+Rules:
+- note = 3–5 lines of plain text.
+- Use ONLY what is visible on the screenshot (text/headlines/offer).
+- No guessing. No "..." .
+- If insufficient/unclear:
+  note = null
+  reason = "{default_reason}"
+- If note is present:
+  reason = null
+
+domain: {domain}
+""".strip()
+
+    raw = vision_json(image_path=image_path, prompt=prompt, temperature=0.0)
+
+    if not isinstance(raw, dict):
+        return {"note": None, "reason": default_reason}
+
+    note = raw.get("note")
+    reason = raw.get("reason")
+
+    if isinstance(note, str) and note.strip():
+        return {"note": note.strip(), "reason": None}
+
+    if isinstance(reason, str) and reason.strip():
+        return {"note": None, "reason": reason.strip()}
+
+    return {"note": None, "reason": default_reason}
 
 
 def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
@@ -243,45 +320,76 @@ def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
         comp_domain = _slug_domain(competitors[0])
         comp_dir = ensure_dir(screenshots_dir / f"competitor__{comp_domain}")
 
-        comp_res = cmd_site_screens(
-            {
-                "cmd": "site_screens",
-                "client_domain": comp_domain,
-                "out_dir": str(comp_dir),
+        manual_comp = _collect_competitor_upload_images(uploads_dir, comp_domain)
+
+        # 1) manual competitor screenshots (preferred if provided)
+        if manual_comp:
+            copied = _copy_into_screenshots(manual_comp, comp_dir)
+            comp_shots = [str(p.as_posix()) for p in copied]
+
+            for sp in comp_shots:
+                if sp not in data["outputs"]["screenshots"]:
+                    data["outputs"]["screenshots"].append(sp)
+
+            note_obj = _extract_competitor_note_from_screenshot(
+                copied[0],
+                language=language,
+                domain=comp_domain,
+            ) if copied else {"note": None, "reason": "no screenshot"}
+
+            if note_obj.get("note"):
+                note_text = (note_obj.get("note") or "").strip()
+            else:
+                r = (note_obj.get("reason") or "нет данных на предоставленном скрине").strip()
+                note_text = ("Нет данных: " + r) if (language or "").lower() == "ru" else ("No data: " + r)
+
+            data["notes"]["competitors"][comp_domain] = {
+                "note": note_text,
+                "screenshots": comp_shots,
+                "site_meta": {"manual": True},
             }
-        )
 
-        comp_files = (comp_res.get("files") or []) if isinstance(comp_res, dict) else []
-        comp_meta = (comp_res.get("meta") or {}) if isinstance(comp_res, dict) else {}
+        # 2) otherwise: auto competitor site capture
+        else:
+            comp_res = cmd_site_screens(
+                {
+                    "cmd": "site_screens",
+                    "client_domain": comp_domain,
+                    "out_dir": str(comp_dir),
+                }
+            )
 
-        comp_shots = [str((comp_dir / f).as_posix()) for f in comp_files]
-        for sp in comp_shots:
-            if sp not in data["outputs"]["screenshots"]:
-                data["outputs"]["screenshots"].append(sp)
+            comp_files = (comp_res.get("files") or []) if isinstance(comp_res, dict) else []
+            comp_meta = (comp_res.get("meta") or {}) if isinstance(comp_res, dict) else {}
 
-        title = (comp_meta.get("title") or "").strip()
-        body_excerpt = (comp_meta.get("body_excerpt") or "").strip()
-        blocked = bool(comp_meta.get("blocked"))
+            comp_shots = [str((comp_dir / f).as_posix()) for f in comp_files]
+            for sp in comp_shots:
+                if sp not in data["outputs"]["screenshots"]:
+                    data["outputs"]["screenshots"].append(sp)
 
-        note = chat_text(
-            messages=[
-                {"role": "system", "content": "Never invent facts. Use only the provided evidence."},
-                {"role": "user", "content": _competitor_note_prompt(
-                    language=language,
-                    domain=comp_domain,
-                    title=title,
-                    body_excerpt=body_excerpt,
-                    blocked=blocked,
-                )},
-            ],
-            temperature=0.0,
-        )
+            title = (comp_meta.get("title") or "").strip()
+            body_excerpt = (comp_meta.get("body_excerpt") or "").strip()
+            blocked = bool(comp_meta.get("blocked"))
 
-        data["notes"]["competitors"][comp_domain] = {
-            "note": (note or "").strip(),
-            "screenshots": comp_shots,
-            "site_meta": comp_meta,
-        }
+            note = chat_text(
+                messages=[
+                    {"role": "system", "content": "Never invent facts. Use only the provided evidence."},
+                    {"role": "user", "content": _competitor_note_prompt(
+                        language=language,
+                        domain=comp_domain,
+                        title=title,
+                        body_excerpt=body_excerpt,
+                        blocked=blocked,
+                    )},
+                ],
+                temperature=0.0,
+            )
+
+            data["notes"]["competitors"][comp_domain] = {
+                "note": (note or "").strip(),
+                "screenshots": comp_shots,
+                "site_meta": comp_meta,
+            }
 
     # --- write artifacts ---
     sales_path, report_path = generate_sales_and_report(data, run_dir)

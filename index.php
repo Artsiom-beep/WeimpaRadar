@@ -59,6 +59,8 @@
       </div>
     </div>
 
+
+
     <div class="row">
       <label>Semrush auto screenshots</label><br/>
       <input type="checkbox" name="semrush_auto" value="1" />
@@ -81,6 +83,14 @@
       <input name="semrush_files[]" type="file" multiple accept="image/png,image/jpeg" />
       <div class="hint">
         Если не используешь авто-скриншоты, можно вручную выбрать много картинок.
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Competitor screenshots (optional)</label><br/>
+      <input name="competitor_files[]" type="file" multiple accept="image/png,image/jpeg" />
+      <div class="hint">
+        Если сайт конкурента не открывается автоматически — загрузи 1–3 скрина главной/оффера.
       </div>
     </div>
 
