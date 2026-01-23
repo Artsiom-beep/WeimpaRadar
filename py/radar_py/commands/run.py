@@ -1,423 +1,92 @@
 from __future__ import annotations
 
-import time
-import traceback
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
-from radar_py.commands.site_screens import cmd_site_screens
-from radar_py.commands.semrush_screens import cmd_semrush_screens
-from radar_py.export.csv_v0_1 import write_data_csv_v0_1
-from radar_py.llm.generate import generate_sales_and_report
-from radar_py.llm.openai_client import chat_text, vision_json
-from radar_py.llm.vision_semrush import extract_semrush_metrics, extract_semrush_competitors
-from radar_py.schema.v0_1 import new_data_v0_1
-from radar_py.semrush.pdf_to_images import render_pdf_to_pngs
-from radar_py.utils.fs import ensure_dir, write_json
-
-
-def _slug_domain(s: str) -> str:
-    t = (s or "").strip().lower()
-    t = t.replace("https://", "").replace("http://", "").strip()
-    t = t.split(",")[0].strip()
-    t = t.split()[0].strip()
-    return t.strip("/")
-
-
-def _collect_semrush_upload_images(uploads_dir: Path) -> List[Path]:
-    out: List[Path] = []
-    for pat in ("semrush_*.png", "semrush_*.jpg", "semrush_*.jpeg"):
-        out.extend(sorted(uploads_dir.glob(pat)))
-
-    uniq: List[Path] = []
-    seen = set()
-    for p in out:
-        rp = str(p.resolve())
-        if rp not in seen:
-            seen.add(rp)
-            uniq.append(p)
-    uniq = [p for p in uniq if "__login_needed" not in p.name]
-    return uniq
-
-
-def _collect_competitor_upload_images(uploads_dir: Path, domain: str) -> List[Path]:
-    d = _slug_domain(domain)
-    out: List[Path] = []
-    for pat in (
-        f"competitor__{d}_*.png",
-        f"competitor__{d}_*.jpg",
-        f"competitor__{d}_*.jpeg",
-    ):
-        out.extend(sorted(uploads_dir.glob(pat)))
-    return out
-
-
-def _copy_into_screenshots(files: List[Path], screenshots_dir: Path) -> List[Path]:
-    screenshots_dir.mkdir(parents=True, exist_ok=True)
-    out: List[Path] = []
-    for p in files:
-        try:
-            dst = screenshots_dir / p.name
-            dst.write_bytes(p.read_bytes())
-            out.append(dst)
-        except Exception:
-            continue
-    return out
-
-
-def _merge_semrush_metrics(base: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
-    for k, v in (candidate or {}).items():
-        if not isinstance(v, dict):
-            continue
-        if (base.get(k) or {}).get("value") is None and v.get("value") is not None:
-            base[k] = {"value": v.get("value"), "reason": None}
-    return base
-
-
-def _competitor_note_prompt(*, language: str, domain: str, title: str, body_excerpt: str, blocked: bool) -> str:
-    lang = (language or "en").lower()
-
-    if lang == "ru":
-        return f"""
-Ты пишешь короткую заметку про сайт конкурента.
-
-СТРОГО:
-- Только plain text.
-- 3–5 строк.
-- Используй только то, что видно в title и body_excerpt.
-- Никаких догадок.
-- Если данных мало: "Нет данных: ..." и причина.
-
-domain: {domain}
-blocked: {blocked}
-title: {title}
-body_excerpt: {body_excerpt}
-""".strip()
-
-    return f"""
-You write a short note about a competitor website.
-
-STRICT:
-- Plain text only.
-- 3–5 lines.
-- Use only what is visible in title and body_excerpt.
-- No guessing.
-- If insufficient: "No data: ..." with a reason.
-
-domain: {domain}
-blocked: {blocked}
-title: {title}
-body_excerpt: {body_excerpt}
-""".strip()
-
-
-def _extract_competitor_note_from_screenshot(image_path: Path, *, language: str, domain: str) -> Dict[str, Any]:
-    lang = (language or "en").lower()
-    default_reason = "нет данных на предоставленном скрине" if lang == "ru" else "not visible in the provided screenshot"
-
-    if not image_path.exists():
-        return {"note": None, "reason": default_reason}
-
-    if lang == "ru":
-        prompt = f"""
-Ты извлекаешь короткую заметку о сайте конкурента со СКРИНШОТА.
-
-Верни СТРОГО JSON с ровно 2 ключами:
-- note: string или null
-- reason: string или null
-
-Правила:
-- note = 3–5 строк plain text.
-- Используй ТОЛЬКО то, что видно на скрине (текст, заголовки, оффер).
-- Никаких догадок, никаких "..." .
-- Если данных мало/ничего не видно:
-  note = null
-  reason = "{default_reason}"
-- Если note заполнен:
-  reason = null
-
-domain: {domain}
-""".strip()
-    else:
-        prompt = f"""
-You extract a short competitor website note from a SCREENSHOT.
-
-Return STRICTLY JSON with EXACTLY 2 keys:
-- note: string or null
-- reason: string or null
-
-Rules:
-- note = 3–5 lines of plain text.
-- Use ONLY what is visible on the screenshot (text/headlines/offer).
-- No guessing. No "..." .
-- If insufficient/unclear:
-  note = null
-  reason = "{default_reason}"
-- If note is present:
-  reason = null
-
-domain: {domain}
-""".strip()
-
-    raw = vision_json(image_path=image_path, prompt=prompt, temperature=0.0)
-
-    if not isinstance(raw, dict):
-        return {"note": None, "reason": default_reason}
-
-    note = raw.get("note")
-    reason = raw.get("reason")
-
-    if isinstance(note, str) and note.strip():
-        return {"note": note.strip(), "reason": None}
-
-    if isinstance(reason, str) and reason.strip():
-        return {"note": None, "reason": reason.strip()}
-
-    return {"note": None, "reason": default_reason}
+from radar_py.run.init import init_run
+from radar_py.run.semrush_auto import run_semrush_auto_if_requested
+from radar_py.run.site import capture_client_site
+from radar_py.semrush.evidence import (
+    collect_semrush_upload_images,
+    collect_competitor_upload_images,
+    copy_into_screenshots,
+    ingest_semrush_pdf,
+    extract_semrush_from_images,
+)
+from radar_py.run.outputs import write_outputs
+from radar_py.utils.domain import slug_domain
+from radar_py.utils.fs import write_json
 
 
 def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
-    client_domain = req.get("client_domain") or req.get("url") or ""
-    if not client_domain:
-        return {"ok": False, "error": "client_domain is required"}
+    try:
+        data, run_dir, screenshots_dir, uploads_dir = init_run(req)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
-    market = req.get("market", "Global")
-    language = req.get("language", "en")
-    mode = req.get("mode", "sales")
+    # --- Semrush auto (если включён) ---
+    run_semrush_auto_if_requested(req, data, uploads_dir)
 
-    competitors = req.get("competitors") or []
-    if isinstance(competitors, str):
-        competitors = [competitors]
-    competitors = [_slug_domain(c) for c in competitors if c]
+    # --- Сайт клиента ---
+    capture_client_site(req, data, screenshots_dir)
 
-    run_id = req.get("run_id")
-    if not run_id:
-        run_id = f"{time.strftime('%Y-%m-%d')}__{_slug_domain(client_domain)}__{mode}__{language}"
+    # --- Semrush evidence: uploads -> screenshots ---
+    semrush_uploads = collect_semrush_upload_images(uploads_dir)
+    data["sources"]["semrush_files"] = [str(p.as_posix()) for p in semrush_uploads]
 
-    run_dir = ensure_dir(Path("runs") / run_id)
-    screenshots_dir = ensure_dir(run_dir / "screenshots")
-    uploads_dir = ensure_dir(run_dir / "uploads")
-
-    data = new_data_v0_1(
-        run_id=run_id,
-        client_domain=_slug_domain(client_domain),
-        market=market,
-        language=language,
-        mode=mode,
-        competitors=competitors,
-    )
-
-    # --- Semrush auto screenshots (persistent profile in runs/_semrush_profile) ---
-    if bool(req.get("semrush_auto")):
-        database = (req.get("semrush_db") or req.get("database") or "pl").lower()
-        comp = competitors[0] if competitors else None
-        semrush_headless = bool(req.get("semrush_headless", True))
-
-        try:
-            semrush_res = cmd_semrush_screens(
-                {
-                    "cmd": "semrush_screens",
-                    "client_domain": client_domain,
-                    "competitor_domain": comp,
-                    "database": database,
-                    "out_dir": str(uploads_dir),
-                    "headless": semrush_headless,
-                    "user_data_dir": str((Path("runs") / "_semrush_profile").as_posix()),
-                }
-            )
-            data["notes"]["semrush_auto_result"] = semrush_res if isinstance(semrush_res, dict) else {"result": semrush_res}
-        except Exception:
-            data["notes"]["semrush_auto_error"] = traceback.format_exc()
-
-    # --- site screenshots (never hard-fail the whole run) ---
-    t0 = time.perf_counter()
-    ss_req: Dict[str, Any] = {
-        "cmd": "site_screens",
-        "client_domain": client_domain,
-        "out_dir": str(screenshots_dir),
-    }
-    if "slide_limit" in req:
-        ss_req["slide_limit"] = req.get("slide_limit")
-
-    ss_res = cmd_site_screens(ss_req)
-    data["metrics"]["timings_ms"]["site_screens"] = int((time.perf_counter() - t0) * 1000)
-
-    files = (ss_res.get("files") or []) if isinstance(ss_res, dict) else []
-    meta = (ss_res.get("meta") or {}) if isinstance(ss_res, dict) else {}
-    data["notes"]["client_site_meta"] = meta or None
-
-    shot_paths = [str((screenshots_dir / f).as_posix()) for f in files]
-    data["outputs"]["screenshots"] = shot_paths
-    data["sources"]["site_screenshots"] = shot_paths
-
-    data["metrics"]["site"]["slider_detected"] = meta.get("slider_detected")
-    data["metrics"]["site"]["slider_method"] = meta.get("method")
-    data["metrics"]["site"]["slides_attempted"] = meta.get("slides_attempted")
-    data["metrics"]["site"]["blocked"] = bool(meta.get("blocked")) or (not bool(ss_res.get("ok", True)))
-
-    # --- blocked screen manual upload ---
-    blocked_upload = uploads_dir / "blocked_screen.png"
-    data["sources"]["blocked_screen_file"] = str(blocked_upload.as_posix()) if blocked_upload.exists() else None
-    data["sources"]["blocked_screen"] = data["sources"]["blocked_screen_file"]
-
-    # --- Semrush evidence: many images + optional PDF ---
-    semrush_upload_images = _collect_semrush_upload_images(uploads_dir)
-    data["sources"]["semrush_files"] = [str(p.as_posix()) for p in semrush_upload_images]
-
-    semrush_pdf = uploads_dir / "semrush.pdf"
-    data["sources"]["semrush_pdf_file"] = str(semrush_pdf.as_posix()) if semrush_pdf.exists() else None
-
-    semrush_images_in_screens: List[Path] = []
-    semrush_images_in_screens.extend(_copy_into_screenshots(semrush_upload_images, screenshots_dir))
-
-    # PDF -> PNG pages in screenshots/
-    pdf_page_imgs: List[Path] = []
-    if semrush_pdf.exists():
-        pages, _reason = render_pdf_to_pngs(semrush_pdf, screenshots_dir)
-        pdf_page_imgs = pages or []
-
-    semrush_images_in_screens.extend(pdf_page_imgs)
-
-    for p in semrush_images_in_screens:
+    copied = copy_into_screenshots(semrush_uploads, screenshots_dir)
+    for p in copied:
         sp = str(p.as_posix())
         if sp not in data["outputs"]["screenshots"]:
             data["outputs"]["screenshots"].append(sp)
 
-    data["sources"]["semrush_source"] = "auto" if semrush_upload_images else "manual"
-    data["sources"]["semrush_screenshot_file"] = str(semrush_upload_images[0].as_posix()) if semrush_upload_images else None
+    # --- Semrush PDF ---
+    pages, pdf_path, pdf_reason = ingest_semrush_pdf(uploads_dir, screenshots_dir)
+    if pdf_path:
+        data["sources"]["semrush_pdf_file"] = str(pdf_path.as_posix())
+    if pages:
+        for p in pages:
+            sp = str(p.as_posix())
+            if sp not in data["outputs"]["screenshots"]:
+                data["outputs"]["screenshots"].append(sp)
+
+    data["sources"]["semrush_source"] = "auto" if semrush_uploads else "manual"
+    data["sources"]["semrush_screenshot_file"] = (
+        str(semrush_uploads[0].as_posix()) if semrush_uploads else None
+    )
     data["sources"]["semrush_overview_screenshot"] = data["sources"]["semrush_screenshot_file"]
 
-    # --- Semrush metrics: merge from many images ---
-    merged = data["metrics"]["semrush"]
-    for img in semrush_images_in_screens:
-        m = extract_semrush_metrics(img)
-        merged = _merge_semrush_metrics(merged, m)
-    data["metrics"]["semrush"] = merged
+    # --- Semrush metrics + competitors ---
+    semrush_images = [
+        p for p in (screenshots_dir.iterdir()) if p.name.startswith("semrush_")
+    ]
 
-    # --- Competitors: union from many images ---
-    client_d = data["input"]["client_domain"]
-    all_domains: List[str] = []
-    for img in semrush_images_in_screens:
-        c = extract_semrush_competitors(img, limit=30)
-        for d in (c.get("domains") or []):
-            if not isinstance(d, str):
-                continue
-            dd = _slug_domain(d)
-            if not dd:
-                continue
-            if dd == client_d:
-                continue
-            if dd not in all_domains:
-                all_domains.append(dd)
+    metrics, competitors = extract_semrush_from_images(
+        semrush_images,
+        base_metrics=data["metrics"]["semrush"],
+        client_domain=data["input"]["client_domain"],
+    )
+    data["metrics"]["semrush"] = metrics
 
-    if all_domains:
-        data["notes"]["semrush_competitors"] = {"domains": all_domains[:30], "reason": None}
-        if not competitors:
-            competitors = all_domains[:8]
-            data["input"]["competitors"] = competitors
-    else:
-        data["notes"]["semrush_competitors"] = {"domains": [], "reason": "нет данных на предоставленном скрине"}
-
-    # --- Capture 1 competitor and generate a short note ---
     if competitors:
-        comp_domain = _slug_domain(competitors[0])
-        comp_dir = ensure_dir(screenshots_dir / f"competitor__{comp_domain}")
+        data["notes"]["semrush_competitors"] = {"domains": competitors, "reason": None}
+        if not data["input"]["competitors"]:
+            data["input"]["competitors"] = competitors[:8]
+    else:
+        data["notes"]["semrush_competitors"] = {
+            "domains": [],
+            "reason": "нет данных на предоставленном скрине",
+        }
 
-        manual_comp = _collect_competitor_upload_images(uploads_dir, comp_domain)
-
-        # 1) manual competitor screenshots (preferred if provided)
-        if manual_comp:
-            copied = _copy_into_screenshots(manual_comp, comp_dir)
-            comp_shots = [str(p.as_posix()) for p in copied]
-
-            for sp in comp_shots:
-                if sp not in data["outputs"]["screenshots"]:
-                    data["outputs"]["screenshots"].append(sp)
-
-            note_obj = _extract_competitor_note_from_screenshot(
-                copied[0],
-                language=language,
-                domain=comp_domain,
-            ) if copied else {"note": None, "reason": "no screenshot"}
-
-            if note_obj.get("note"):
-                note_text = (note_obj.get("note") or "").strip()
-            else:
-                r = (note_obj.get("reason") or "нет данных на предоставленном скрине").strip()
-                note_text = ("Нет данных: " + r) if (language or "").lower() == "ru" else ("No data: " + r)
-
-            data["notes"]["competitors"][comp_domain] = {
-                "note": note_text,
-                "screenshots": comp_shots,
-                "site_meta": {"manual": True},
-            }
-
-        # 2) otherwise: auto competitor site capture
-        else:
-            comp_res = cmd_site_screens(
-                {
-                    "cmd": "site_screens",
-                    "client_domain": comp_domain,
-                    "out_dir": str(comp_dir),
-                }
-            )
-
-            comp_files = (comp_res.get("files") or []) if isinstance(comp_res, dict) else []
-            comp_meta = (comp_res.get("meta") or {}) if isinstance(comp_res, dict) else {}
-
-            comp_shots = [str((comp_dir / f).as_posix()) for f in comp_files]
-            for sp in comp_shots:
-                if sp not in data["outputs"]["screenshots"]:
-                    data["outputs"]["screenshots"].append(sp)
-
-            title = (comp_meta.get("title") or "").strip()
-            body_excerpt = (comp_meta.get("body_excerpt") or "").strip()
-            blocked = bool(comp_meta.get("blocked"))
-
-            note = chat_text(
-                messages=[
-                    {"role": "system", "content": "Never invent facts. Use only the provided evidence."},
-                    {
-                        "role": "user",
-                        "content": _competitor_note_prompt(
-                            language=language,
-                            domain=comp_domain,
-                            title=title,
-                            body_excerpt=body_excerpt,
-                            blocked=blocked,
-                        ),
-                    },
-                ],
-                temperature=0.0,
-            )
-
-            data["notes"]["competitors"][comp_domain] = {
-                "note": (note or "").strip(),
-                "screenshots": comp_shots,
-                "site_meta": comp_meta,
-            }
-
-    # --- write artifacts ---
-    sales_path, report_path = generate_sales_and_report(data, run_dir)
-    data["outputs"]["sales_note_txt"] = sales_path
-    data["outputs"]["report_md"] = report_path
-
-    data_path = run_dir / "data.json"
-    data["outputs"]["data_json"] = str(data_path.as_posix())
-    write_json(data_path, data)
-
-    csv_path = run_dir / "data.csv"
-    data["outputs"]["data_csv"] = write_data_csv_v0_1(data, csv_path)
-    write_json(data_path, data)
+    # --- Финальные артефакты ---
+    write_outputs(data, run_dir)
 
     return {
         "ok": True,
-        "run_id": run_id,
+        "run_id": data["run_id"],
         "paths": {
             "run_dir": str(run_dir.as_posix()),
             "screenshots_dir": str(screenshots_dir.as_posix()),
-            "data_json": str(data_path.as_posix()),
-            "data_csv": str(csv_path.as_posix()),
+            "data_json": data["outputs"]["data_json"],
+            "data_csv": data["outputs"]["data_csv"],
         },
-        "site_screens": ss_res,
     }

@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+import traceback
+from pathlib import Path
+from typing import Any, Dict
+
+from radar_py.commands.semrush_screens import cmd_semrush_screens
+
+
+def run_semrush_auto_if_requested(
+    req: Dict[str, Any],
+    data: Dict[str, Any],
+    uploads_dir: Path,
+) -> None:
+    if not bool(req.get("semrush_auto")):
+        return
+
+    database = (req.get("semrush_db") or req.get("database") or "pl").lower()
+    competitors = data.get("input", {}).get("competitors") or []
+    comp = competitors[0] if competitors else None
+    semrush_headless = bool(req.get("semrush_headless", True))
+
+    try:
+        res = cmd_semrush_screens(
+            {
+                "cmd": "semrush_screens",
+                "client_domain": data["input"]["client_domain"],
+                "competitor_domain": comp,
+                "database": database,
+                "out_dir": str(uploads_dir),
+                "headless": semrush_headless,
+                "user_data_dir": str((Path("runs") / "_semrush_profile").as_posix()),
+            }
+        )
+        data["notes"]["semrush_auto_result"] = res if isinstance(res, dict) else {"result": res}
+    except Exception:
+        data["notes"]["semrush_auto_error"] = traceback.format_exc()
