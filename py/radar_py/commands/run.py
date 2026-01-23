@@ -36,6 +36,7 @@ def _collect_semrush_upload_images(uploads_dir: Path) -> List[Path]:
         if rp not in seen:
             seen.add(rp)
             uniq.append(p)
+    uniq = [p for p in uniq if "__login_needed" not in p.name]
     return uniq
 
 
