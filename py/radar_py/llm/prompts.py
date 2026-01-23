@@ -20,13 +20,15 @@ def sales_note_prompt(data: Dict[str, Any]) -> str:
     return f"""
 You are generating a sales note.
 
+
 STRICT:
-- Plain text only.
-- Exactly 10 lines.
 - No "..." anywhere.
 - Never invent facts.
 - Only use statements supported by EVIDENCE below.
-- If something is missing, say it is unavailable and include the reason.
+- "No data:" is ONLY for missing evidence (metric value is null or section is not captured).
+- Zero values (0) are VALID data. Never label 0 as "No data".
+- Do not use "No data:" for interpretation, only for absence of evidence.
+
 
 EVIDENCE:
 - domain: {inp.get("client_domain")}
