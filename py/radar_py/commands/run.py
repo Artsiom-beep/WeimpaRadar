@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -205,26 +206,27 @@ def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
         competitors=competitors,
     )
 
-    # --- Semrush auto screenshots (opens browser, remembers login in runs/_semrush_profile) ---
+    # --- Semrush auto screenshots (persistent profile in runs/_semrush_profile) ---
     if bool(req.get("semrush_auto")):
         database = (req.get("semrush_db") or req.get("database") or "pl").lower()
         comp = competitors[0] if competitors else None
+        semrush_headless = bool(req.get("semrush_headless", True))
 
         try:
-            cmd_semrush_screens(
+            semrush_res = cmd_semrush_screens(
                 {
                     "cmd": "semrush_screens",
                     "client_domain": client_domain,
                     "competitor_domain": comp,
                     "database": database,
                     "out_dir": str(uploads_dir),
-                    "headless": False,
+                    "headless": semrush_headless,
                     "user_data_dir": str((Path("runs") / "_semrush_profile").as_posix()),
                 }
             )
+            data["notes"]["semrush_auto_result"] = semrush_res if isinstance(semrush_res, dict) else {"result": semrush_res}
         except Exception:
-            # если Semrush-автоскрины не получились — продолжаем дальше (manual evidence still works)
-            pass
+            data["notes"]["semrush_auto_error"] = traceback.format_exc()
 
     # --- site screenshots (never hard-fail the whole run) ---
     t0 = time.perf_counter()
@@ -280,7 +282,7 @@ def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
         if sp not in data["outputs"]["screenshots"]:
             data["outputs"]["screenshots"].append(sp)
 
-    data["sources"]["semrush_source"] = "manual"
+    data["sources"]["semrush_source"] = "auto" if semrush_upload_images else "manual"
     data["sources"]["semrush_screenshot_file"] = str(semrush_upload_images[0].as_posix()) if semrush_upload_images else None
     data["sources"]["semrush_overview_screenshot"] = data["sources"]["semrush_screenshot_file"]
 
@@ -374,13 +376,16 @@ def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
             note = chat_text(
                 messages=[
                     {"role": "system", "content": "Never invent facts. Use only the provided evidence."},
-                    {"role": "user", "content": _competitor_note_prompt(
-                        language=language,
-                        domain=comp_domain,
-                        title=title,
-                        body_excerpt=body_excerpt,
-                        blocked=blocked,
-                    )},
+                    {
+                        "role": "user",
+                        "content": _competitor_note_prompt(
+                            language=language,
+                            domain=comp_domain,
+                            title=title,
+                            body_excerpt=body_excerpt,
+                            blocked=blocked,
+                        ),
+                    },
                 ],
                 temperature=0.0,
             )

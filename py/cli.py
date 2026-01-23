@@ -1,6 +1,12 @@
 import json
 import sys
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 from radar_py.commands.site_screens import cmd_site_screens
 from radar_py.commands.run import cmd_run
 from radar_py.commands.semrush_screens import cmd_semrush_screens
