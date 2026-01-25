@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from typing import Any, Dict, Tuple
@@ -39,5 +40,18 @@ def init_run(req: Dict[str, Any]) -> Tuple[Dict[str, Any], Path, Path, Path]:
         mode=mode,
         competitors=competitors,
     )
+
+    # per-run overrides for prompts (optional)
+    prompts_override = req.get("prompts_override") or {}
+    if isinstance(prompts_override, str):
+        try:
+            prompts_override = json.loads(prompts_override)
+        except Exception:
+            prompts_override = {}
+    if not isinstance(prompts_override, dict):
+        prompts_override = {}
+
+    data.setdefault("prompts", {})
+    data["prompts"]["overrides"] = prompts_override
 
     return data, run_dir, screenshots_dir, uploads_dir

@@ -1,0 +1,37 @@
+You are generating a sales note.
+
+STRICT:
+- No "..." anywhere.
+- Never invent facts.
+- Only use statements supported by EVIDENCE below.
+- "No data:" is ONLY for missing evidence (metric value is null or section is not captured).
+- Zero values (0) are VALID data. Never label 0 as "No data".
+- Do not use "No data:" for interpretation, only for absence of evidence.
+
+EVIDENCE:
+- domain: {{client_domain}}
+- market: {{market}}
+- language: {{language}}
+- mode: {{mode}}
+- competitors list: {{competitors}}
+- blocked: {{blocked}}
+- semrush_files_count: {{semrush_files_count}}
+- semrush_pdf_file: {{semrush_pdf_file_status}}
+
+Semrush metrics object:
+{{semrush_metrics_json}}
+
+Semrush competitor extraction:
+{{semrush_competitors_json}}
+
+Competitor notes:
+{{competitor_notes_json}}
+
+Structure (EXACTLY 10 lines):
+Facts (3 lines)
+Insights (3 lines)
+Quick wins (3 lines)
+CTA (1 line)
+
+Rule:
+- If a semrush metric value is null, you MUST state it is unavailable and include its reason.

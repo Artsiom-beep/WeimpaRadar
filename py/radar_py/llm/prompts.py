@@ -1,11 +1,36 @@
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict
 
 
 def _reason(v: Dict[str, Any]) -> str:
     r = (v or {}).get("reason")
     return r or "нет данных на предоставленном скрине"
+
+
+@lru_cache(maxsize=64)
+def _load_default(name: str) -> str:
+    base = Path(__file__).resolve().parents[1] / "prompts" / "default"
+    p = base / name
+    return p.read_text(encoding="utf-8")
+
+
+def _load_template(name: str, override_text: Any | None) -> str:
+    if override_text is not None:
+        txt = str(override_text)
+        if txt.strip():
+            return txt
+    return _load_default(name)
+
+
+def _render(tpl: str, ctx: Dict[str, Any]) -> str:
+    out = tpl
+    for k, v in ctx.items():
+        out = out.replace("{{" + k + "}}", str(v))
+    return out
 
 
 def sales_note_prompt(data: Dict[str, Any]) -> str:
@@ -17,47 +42,24 @@ def sales_note_prompt(data: Dict[str, Any]) -> str:
     semrush_comp = notes.get("semrush_competitors", {}) or {}
     comp_notes = notes.get("competitors", {}) or {}
 
-    return f"""
-You are generating a sales note.
+    overrides = (data.get("prompts", {}) or {}).get("overrides", {}) or {}
+    tpl = _load_template("sales_note.txt", overrides.get("sales_note"))
 
+    ctx = {
+        "client_domain": inp.get("client_domain"),
+        "market": inp.get("market"),
+        "language": inp.get("language"),
+        "mode": inp.get("mode"),
+        "competitors": inp.get("competitors"),
+        "blocked": bool(site.get("blocked")),
+        "semrush_files_count": len((sources.get("semrush_files") or [])),
+        "semrush_pdf_file_status": "provided" if sources.get("semrush_pdf_file") else "not provided",
+        "semrush_metrics_json": json.dumps(semrush, ensure_ascii=False, indent=2),
+        "semrush_competitors_json": json.dumps(semrush_comp, ensure_ascii=False, indent=2),
+        "competitor_notes_json": json.dumps(comp_notes, ensure_ascii=False, indent=2),
+    }
 
-STRICT:
-- No "..." anywhere.
-- Never invent facts.
-- Only use statements supported by EVIDENCE below.
-- "No data:" is ONLY for missing evidence (metric value is null or section is not captured).
-- Zero values (0) are VALID data. Never label 0 as "No data".
-- Do not use "No data:" for interpretation, only for absence of evidence.
-
-
-EVIDENCE:
-- domain: {inp.get("client_domain")}
-- market: {inp.get("market")}
-- language: {inp.get("language")}
-- mode: {inp.get("mode")}
-- competitors list: {inp.get("competitors")}
-- blocked: {bool(site.get("blocked"))}
-- semrush_files_count: {len((sources.get("semrush_files") or []))}
-- semrush_pdf_file: {"provided" if sources.get("semrush_pdf_file") else "not provided"}
-
-Semrush metrics object:
-{semrush}
-
-Semrush competitor extraction:
-{semrush_comp}
-
-Competitor notes:
-{comp_notes}
-
-Structure (EXACTLY 10 lines):
-Facts (3 lines)
-Insights (3 lines)
-Quick wins (3 lines)
-CTA (1 line)
-
-Rule:
-- If a semrush metric value is null, you MUST state it is unavailable and include its reason.
-""".strip()
+    return _render(tpl, ctx).strip()
 
 
 def report_md_prompt(data: Dict[str, Any]) -> str:
@@ -84,44 +86,22 @@ def report_md_prompt(data: Dict[str, Any]) -> str:
         m("backlinks"),
     ])
 
-    return f"""
-Write a one-page markdown report.
+    overrides = (data.get("prompts", {}) or {}).get("overrides", {}) or {}
+    tpl = _load_template("report.md", overrides.get("report_md"))
 
-STRICT:
-- No "..." anywhere.
-- Never invent facts.
-- Only use statements supported by EVIDENCE below.
-- If you cannot support a statement, write: "No data: <reason>".
+    ctx = {
+        "client_domain": inp.get("client_domain"),
+        "market": inp.get("market"),
+        "language": inp.get("language"),
+        "mode": inp.get("mode"),
+        "competitors": inp.get("competitors"),
+        "blocked": bool(site.get("blocked")),
+        "screenshots_count": len(outputs.get("screenshots") or []),
+        "semrush_files_count": len((sources.get("semrush_files") or [])),
+        "semrush_pdf_file_status": "provided" if sources.get("semrush_pdf_file") else "not provided",
+        "semrush_metrics_lines": semrush_lines,
+        "semrush_competitors_json": json.dumps(semrush_comp, ensure_ascii=False, indent=2),
+        "competitor_notes_json": json.dumps(comp_notes, ensure_ascii=False, indent=2),
+    }
 
-Use this structure:
-
-# Summary
-# What we observed
-# Risks / blockers
-# Opportunities
-# Next steps
-
-EVIDENCE:
-- domain: {inp.get("client_domain")}
-- market: {inp.get("market")}
-- language: {inp.get("language")}
-- mode: {inp.get("mode")}
-- competitors list: {inp.get("competitors")}
-- blocked: {bool(site.get("blocked"))}
-- screenshots count: {len(outputs.get("screenshots") or [])}
-- semrush_files_count: {len((sources.get("semrush_files") or []))}
-- semrush_pdf_file: {"provided" if sources.get("semrush_pdf_file") else "not provided"}
-
-Semrush metrics:
-{semrush_lines}
-
-Semrush competitor extraction:
-{semrush_comp}
-
-Competitor notes:
-{comp_notes}
-
-Rules:
-- If competitor notes exist: you may compare using only those notes.
-- If competitors list is not empty but competitor notes missing: write "No data: competitor screenshots/notes not captured".
-""".strip()
+    return _render(tpl, ctx).strip()

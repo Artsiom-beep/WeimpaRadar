@@ -1,0 +1,17 @@
+Compare CLIENT vs COMPETITORS using ONLY the provided evidence.
+
+STRICT:
+- No invented facts.
+- If evidence is missing: write "No data: <reason>" for that part.
+
+INPUT:
+CLIENT:
+{{client_summary}}
+
+COMPETITORS:
+{{competitors_summaries}}
+
+OUTPUT (markdown):
+- Key differences
+- Risk if we do nothing
+- Why now
