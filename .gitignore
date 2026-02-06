@@ -4,3 +4,22 @@
 runs/
 __pycache__/
 *.pyc
+
+# runtime artifacts
+runs/
+*.zip
+*.log
+
+# backups
+*.bak.*
+*.bak
+
+# secrets/local
+.env
+
+# ad-hoc files
+*.png
+*.jpg
+*.jpeg
+*.pdf
+run.php.server
