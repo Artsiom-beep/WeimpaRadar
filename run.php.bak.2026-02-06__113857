@@ -1,7 +1,4 @@
 <?php
-header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Pragma: no-cache');
 
 function load_env_file($path) {
   if (!is_readable($path)) return;
@@ -127,7 +124,6 @@ $payload = [
   'cmd' => 'run',
   'client_domain' => $client_domain,
   'market' => $market,
-  'semrush_database' => (trim($_POST['semrush_database'] ?? '') ?: $market),
   'language' => $language,
   'mode' => $mode,
   'competitors' => $competitors,
@@ -270,39 +266,22 @@ if (is_readable($dataAbs)) {
   if (is_array($tmp)) $data = $tmp;
 }
 
-$competitorsCount = 0;
-$semrushDb = null;
-if (is_array($data)) {
-  $cc = $data['input']['competitors'] ?? [];
-  if (is_array($cc)) $competitorsCount = count($cc);
-  $semrushDb = $data['input']['semrush_database'] ?? ($data['input']['database'] ?? null);
-}
-
-
 $ssDirRel = $runDirRel . '/screenshots';
 $ssDirAbs = __DIR__ . DIRECTORY_SEPARATOR . $ssDirRel;
 $imgs = list_images_recursive_1_level($ssDirAbs, $ssDirRel);
 
-
-$hasSemrushByFiles = false;
-if (is_array($imgs)) {
-  foreach ($imgs as $pair) {
-    $label = (string)($pair[1] ?? '');
-    if (stripos($label, 'semrush') === 0) { $hasSemrushByFiles = true; break; }
-  }
-}
 $totalImgs = is_array($imgs) ? count($imgs) : 0;
 $semrushImgs = 0; $siteImgs = 0; $competitorImgs = 0;
-
 
 if (is_array($imgs)) {
   foreach ($imgs as $pair) {
     $label = (string)($pair[1] ?? '');
     if (stripos($label, 'semrush') === 0) $semrushImgs++;
+    else if (stripos($label, 'site') === 0) $siteImgs++;
     else if (stripos($label, 'competitor') === 0) $competitorImgs++;
-    else $siteImgs++;
   }
 }
+
 $blocked = null;
 if (is_array($data)) $blocked = $data['metrics']['site']['blocked'] ?? null;
 
@@ -339,7 +318,6 @@ if ($ok) {
     <div class="card">
       <div class="kv">Скрины: сайт <?php echo intval($siteImgs); ?>, Semrush <?php echo intval($semrushImgs); ?>, конкуренты <?php echo intval($competitorImgs); ?>.</div>
       <div class="kv">Market: <?php echo htmlspecialchars($market); ?>. Language: <?php echo htmlspecialchars($language); ?>.</div>
-      <div class="kv">Semrush DB: <?php echo htmlspecialchars($semrushDb ?? $market); ?>. Competitors: <?php echo intval($competitorsCount); ?>.</div>
 
       <?php if ($blocked): ?>
         <div class="warn">Сайт отвечает как для бота. Нужен blocked screen или ручные скрины.</div>

@@ -1,41 +1,48 @@
 import time
 
 from radar_py.utils.sig import state_sig
-from radar_py.utils.shots import save_full, cleanup_files
+from radar_py.utils.shots import save_viewport, cleanup_files
 
 
-NAV_SELECTORS = [
-    "nav a",
-    "nav button",
-    "[role='navigation'] a",
-    "[role='navigation'] button",
+DOT_SELECTORS = [
+    ".swiper-pagination-bullet",
+    ".swiper-pagination *",
+    ".slick-dots li",
+    ".slick-dots li *",
+    ".tns-nav *",
+    ".splide__pagination__page",
+    ".glide__bullets *",
+    ".flickity-page-dots li",
+    "[data-slide]",
+    "[data-slide-to]",
+    "[data-nav]",
+    "[aria-label*='slide' i]",
+    "[class*='dot' i]",
+    "[class*='bullet' i]",
+    "[role='tab']",
 ]
 
 
-def try_nav_tabs(page, out_dir, limit: int) -> dict | None:
+def try_dots(page, out_dir, limit: int) -> dict | None:
     if limit < 2:
         return None
 
-    for sel in NAV_SELECTORS:
+    for sel in DOT_SELECTORS:
         try:
             loc = page.locator(sel)
             cnt = loc.count()
-            if cnt < 3:
+            if cnt < 2:
                 continue
 
             idxs: list[int] = []
-            for i in range(min(cnt, 50)):
+            for i in range(min(cnt, 40)):
                 try:
-                    el = loc.nth(i)
-                    if not el.is_visible():
-                        continue
-                    txt = (el.inner_text() or "").strip()
-                    if 2 <= len(txt) <= 24:
+                    if loc.nth(i).is_visible():
                         idxs.append(i)
                 except Exception:
                     continue
 
-            if len(idxs) < 3:
+            if len(idxs) < 2:
                 continue
 
             idxs = idxs[:limit]
@@ -44,7 +51,7 @@ def try_nav_tabs(page, out_dir, limit: int) -> dict | None:
             time.sleep(0.4)
 
             files: list[str] = []
-            save_full(page, out_dir, "slide_01.png")
+            save_viewport(page, out_dir, "slide_01.png")
             files.append("slide_01.png")
             last = state_sig(page)
 
@@ -69,13 +76,13 @@ def try_nav_tabs(page, out_dir, limit: int) -> dict | None:
 
                 last = now
                 name = f"slide_{shot_index:02d}.png"
-                save_full(page, out_dir, name)
+                save_viewport(page, out_dir, name)
                 files.append(name)
                 shot_index += 1
 
             if len(files) >= 2:
                 return {
-                    "method": "nav_tabs",
+                    "method": "dots",
                     "selector": sel,
                     "files": files,
                 }

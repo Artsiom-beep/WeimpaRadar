@@ -52,7 +52,7 @@ def load_semrush_creds(req: Dict[str, Any]) -> Tuple[Optional[str], Optional[str
 def shot_viewport(page, out_dir: Path, filename: str) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / filename
-    page.screenshot(path=str(path), full_page=True)
+    page.screenshot(path=str(path), full_page=False)
     return filename
 
 

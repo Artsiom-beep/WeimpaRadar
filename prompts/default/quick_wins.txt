@@ -1,0 +1,12 @@
+Generate quick wins using ONLY the provided evidence.
+
+STRICT:
+- No invented facts.
+- If evidence is missing: write "No data: <reason>".
+
+OUTPUT:
+Exactly 3 quick wins, each:
+- title
+- what to change
+- why it matters
+- expected impact

@@ -51,3 +51,6 @@ def capture_client_site(
     site["slider_method"] = meta.get("method")
     site["slides_attempted"] = meta.get("slides_attempted")
     site["blocked"] = bool(meta.get("blocked"))
+
+    if site["blocked"] and meta.get("blocked_reason"):
+        data.setdefault("notes", {})["site_blocked_reason"] = str(meta.get("blocked_reason"))

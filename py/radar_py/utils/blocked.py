@@ -16,6 +16,19 @@ _PATTERNS = [
     r"bot detection",
 ]
 
+
+def blocked_reason(title: str, body_text: str):
+    t = (title or "").lower()
+    b = (body_text or "").lower()
+    blob = t + "\n" + b
+    for p in _PATTERNS:
+        try:
+            if re.search(p, blob):
+                return p
+        except Exception:
+            continue
+    return None
+
 def looks_blocked(title: str, body_text: str) -> bool:
     t = (title or "").lower()
     b = (body_text or "").lower()

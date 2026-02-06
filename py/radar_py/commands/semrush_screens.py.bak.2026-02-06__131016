@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, List
+
+from playwright.sync_api import sync_playwright
+
+from radar_py.semrush.capture import capture_one_domain
+from radar_py.semrush.login import load_semrush_creds
+from radar_py.utils.domain import slug_domain
+
+
+def cmd_semrush_screens(req: Dict[str, Any]) -> Dict[str, Any]:
+    files = []
+    client_domain = req.get("client_domain") or ""
+    if not client_domain:
+        return {"ok": False, "error": "client_domain is required"}
+    competitor_domain = req.get("competitor_domain") or None
+
+    competitors = req.get("competitors") or []
+    if isinstance(competitors, str):
+        competitors = [competitors]
+        for comp_domain in norm_comp:
+            f2, seq = capture_one_domain(
+                page,
+                out_dir,
+                domain=comp_domain,
+                database=database,
+                seq_start=seq,
+                headless=headless,
+                email=email,
+                password=password,
+            )
+            files.extend(f2)
+        if competitor_domain:
+            f2, seq = capture_one_domain(
+                page,
+                out_dir,
+                domain=competitor_domain,
+                database=database,
+                seq_start=seq,
+                headless=headless,
+                email=email,
+                password=password,
+            )
+            files.extend(f2)
+
+        try:
+            context.close()
+        except Exception:
+            pass
+
+    return {"ok": True, "files": files, "meta": meta}

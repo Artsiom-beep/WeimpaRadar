@@ -52,7 +52,7 @@ def load_semrush_creds(req: Dict[str, Any]) -> Tuple[Optional[str], Optional[str
 def shot_viewport(page, out_dir: Path, filename: str) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / filename
-    page.screenshot(path=str(path), full_page=True)
+    page.screenshot(path=str(path), full_page=False)
     return filename
 
 
@@ -134,17 +134,8 @@ def wait_for_login(
         auto_login(page, email, password)
 
     if headless:
-        # headless: ручной логин невозможен, но авто-логин возможен
-        if email and password:
-            t0 = time.time()
-            while time.time() - t0 < 60:
-                if not needs_login(page):
-                    return
-                page.wait_for_timeout(1000)
-            scroll_top(page)
-            shot_viewport(page, out_dir, f"{name_prefix}__login_still_needed.png")
-        else:
-            page.wait_for_timeout(1500)
+        # в headless ручной логин невозможен, не зависать на 10 минут
+        page.wait_for_timeout(1500)
         return
 
     t0 = time.time()
@@ -152,4 +143,3 @@ def wait_for_login(
         if not needs_login(page):
             return
         page.wait_for_timeout(1000)
-

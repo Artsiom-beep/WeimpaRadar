@@ -50,7 +50,6 @@ def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
                 data["outputs"]["screenshots"].append(sp)
 
     client_slug = slug_domain(data["input"]["client_domain"])
-    data["input"]["semrush_database"] = (req.get("semrush_database") or req.get("database") or req.get("market") or "us")
     semrush_uploads_client = [p for p in semrush_uploads if f"__{client_slug}__" in p.name]
 
     data["sources"]["semrush_source"] = "auto" if semrush_uploads else "manual"
@@ -58,14 +57,10 @@ def cmd_run(req: Dict[str, Any]) -> Dict[str, Any]:
     data["sources"]["semrush_screenshot_file"] = str(overview_upload.as_posix()) if overview_upload else None
     data["sources"]["semrush_overview_screenshot"] = data["sources"]["semrush_screenshot_file"]
     # --- Semrush metrics + competitors ---
+    client_slug = slug_domain(data["input"]["client_domain"])
     semrush_images = [p for p in screenshots_dir.iterdir() if p.name.startswith("semrush_") and f"__{client_slug}__" in p.name]
     if not semrush_images:
         semrush_images = [p for p in screenshots_dir.iterdir() if p.name.startswith("semrush_")]
-    if semrush_images:
-        data.setdefault("sources", {})["semrush_source"] = "auto"
-        data["sources"]["semrush_overview_screenshot"] = str(semrush_images[0].as_posix())
-        data["sources"]["semrush_screenshot_file"] = data["sources"]["semrush_overview_screenshot"]
-
     metrics, competitors = extract_semrush_from_images(
         semrush_images,
         base_metrics=data["metrics"]["semrush"],

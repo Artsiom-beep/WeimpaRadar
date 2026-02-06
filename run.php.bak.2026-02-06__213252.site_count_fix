@@ -1,7 +1,4 @@
 <?php
-header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Pragma: no-cache');
 
 function load_env_file($path) {
   if (!is_readable($path)) return;
@@ -294,15 +291,15 @@ if (is_array($imgs)) {
 $totalImgs = is_array($imgs) ? count($imgs) : 0;
 $semrushImgs = 0; $siteImgs = 0; $competitorImgs = 0;
 
-
 if (is_array($imgs)) {
   foreach ($imgs as $pair) {
     $label = (string)($pair[1] ?? '');
     if (stripos($label, 'semrush') === 0) $semrushImgs++;
+    else if (stripos($label, 'site') === 0) $siteImgs++;
     else if (stripos($label, 'competitor') === 0) $competitorImgs++;
-    else $siteImgs++;
   }
 }
+
 $blocked = null;
 if (is_array($data)) $blocked = $data['metrics']['site']['blocked'] ?? null;
 

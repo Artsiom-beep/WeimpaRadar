@@ -1,7 +1,7 @@
 import time
 
 from radar_py.utils.sig import state_sig
-from radar_py.utils.shots import save_full
+from radar_py.utils.shots import save_viewport
 
 
 def try_arrow(page, out_dir, limit: int) -> dict | None:
@@ -13,7 +13,7 @@ def try_arrow(page, out_dir, limit: int) -> dict | None:
     page.evaluate("() => window.scrollTo(0, 0)")
     time.sleep(0.4)
 
-    save_full(page, out_dir, "slide_01.png")
+    save_viewport(page, out_dir, "slide_01.png")
     files.append("slide_01.png")
     last = state_sig(page)
 
@@ -30,7 +30,7 @@ def try_arrow(page, out_dir, limit: int) -> dict | None:
 
         last = now
         name = f"slide_{i:02d}.png"
-        save_full(page, out_dir, name)
+        save_viewport(page, out_dir, name)
         files.append(name)
 
     if len(files) < 2:

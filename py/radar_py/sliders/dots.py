@@ -1,7 +1,7 @@
 import time
 
 from radar_py.utils.sig import state_sig
-from radar_py.utils.shots import save_viewport, cleanup_files
+from radar_py.utils.shots import save_full, cleanup_files
 
 
 DOT_SELECTORS = [
@@ -51,7 +51,7 @@ def try_dots(page, out_dir, limit: int) -> dict | None:
             time.sleep(0.4)
 
             files: list[str] = []
-            save_viewport(page, out_dir, "slide_01.png")
+            save_full(page, out_dir, "slide_01.png")
             files.append("slide_01.png")
             last = state_sig(page)
 
@@ -76,7 +76,7 @@ def try_dots(page, out_dir, limit: int) -> dict | None:
 
                 last = now
                 name = f"slide_{shot_index:02d}.png"
-                save_viewport(page, out_dir, name)
+                save_full(page, out_dir, name)
                 files.append(name)
                 shot_index += 1
 
